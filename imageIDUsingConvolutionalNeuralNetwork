@@ -1,0 +1,116 @@
+"""
+Conor Steward
+11/19/24
+CIFAR-10 Image Classification Using Convolutional Neural Networks
+-----------------------------------------------------------------
+This script trains a Convolutional Neural Network (CNN) on the CIFAR-10 dataset, which consists of 60,000 32x32 color images categorized into 10 classes. The model uses the following steps:
+1. Load and preprocess the CIFAR-10 dataset.
+2. Define a CNN architecture with convolutional, pooling, and fully connected layers.
+3. Apply data augmentation to improve generalization.
+4. Train the model with categorical crossentropy loss and RMSprop optimizer.
+5. Evaluate the model on the test dataset and print its performance.
+
+Key Features:
+- Dataset: CIFAR-10 (50,000 training images, 10,000 test images)
+- Architecture: Convolutional Neural Network with dropout for regularization
+- Evaluation: Reports accuracy and loss on test data
+- Data Augmentation: Rotation, shifting, zooming, and flipping to enhance robustness
+"""
+
+# Import necessary libraries
+from keras.datasets import cifar10
+from keras.utils import np_utils
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.optimizers import SGD, Adam, RMSprop
+import matplotlib.pyplot as plt
+import numpy as np
+import ssl
+from keras.preprocessing.image import ImageDataGenerator
+
+# Resolve SSL issues for dataset download
+ssl._create_default_https_context = ssl._create_unverified_context
+
+# CIFAR-10 dataset constants
+IMG_CHANNELS = 3          # Number of color channels (RGB)
+IMG_ROWS = 32             # Image height
+IMG_COLS = 32             # Image width
+NUM_CLASSES = 10          # Number of output classes (airplane, car, etc.)
+
+# Model training parameters
+BATCH_SIZE = 128          # Batch size for training
+NB_EPOCH = 20             # Number of epochs for training
+VALIDATION_SPLIT = 0.2    # Fraction of training data reserved for validation
+OPTIM = RMSprop()         # Optimizer for training
+
+# Load and preprocess the CIFAR-10 dataset
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
+
+# Print dataset shapes and sizes
+print('X_train shape:', X_train.shape)
+print(X_train.shape[0], 'train samples')
+print(X_test.shape[0], 'test samples')
+
+# Convert labels to one-hot encoding
+Y_train = np_utils.to_categorical(y_train, NUM_CLASSES)
+Y_test = np_utils.to_categorical(y_test, NUM_CLASSES)
+
+# Convert pixel values to float32 and normalize to the range [0, 1]
+X_train = X_train.astype('float32') / 255
+X_test = X_test.astype('float32') / 255
+
+# Define the CNN model
+model = Sequential()
+
+# First convolutional layer
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=(IMG_ROWS, IMG_COLS, IMG_CHANNELS)))
+model.add(Activation('relu'))                 # Apply ReLU activation for non-linearity
+model.add(MaxPooling2D(pool_size=(2, 2)))     # Downsample using max pooling
+model.add(Dropout(0.25))                      # Apply dropout for regularization
+
+# Second convolutional layer
+model.add(Conv2D(64, (3, 3), padding='same'))
+model.add(Activation('relu'))                 # ReLU activation
+model.add(MaxPooling2D(pool_size=(2, 2)))     # Max pooling
+model.add(Dropout(0.25))                      # Dropout for regularization
+
+# Flatten the feature maps and add fully connected layers
+model.add(Flatten())                          # Flatten the 3D feature maps to 1D
+model.add(Dense(512))                         # Fully connected layer with 512 units
+model.add(Activation('relu'))                 # ReLU activation
+model.add(Dropout(0.5))                       # Dropout to reduce overfitting
+model.add(Dense(NUM_CLASSES))                 # Output layer for classification
+model.add(Activation('softmax'))              # Softmax activation for multi-class classification
+
+# Compile the model
+model.compile(loss='categorical_crossentropy', # Loss function for multi-class classification
+              optimizer=OPTIM,                # Optimizer
+              metrics=['accuracy'])           # Evaluation metric: accuracy
+
+# Data augmentation to enhance training data diversity
+datagen = ImageDataGenerator(
+    rotation_range=40,              # Randomly rotate images by up to 40 degrees
+    width_shift_range=0.2,          # Randomly shift images horizontally
+    height_shift_range=0.2,         # Randomly shift images vertically
+    zoom_range=0.2,                 # Randomly zoom images
+    horizontal_flip=True,           # Randomly flip images horizontally
+    fill_mode='nearest'             # Fill missing pixels with nearest neighbors
+)
+
+# Apply data augmentation to training data
+datagen.fit(X_train)
+
+# Train the model using the augmented data
+history = model.fit(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE),
+                    steps_per_epoch=X_train.shape[0] // BATCH_SIZE, # Number of batches per epoch
+                    epochs=NB_EPOCH,                              # Number of epochs
+                    validation_data=(X_test, Y_test),             # Validation data
+                    verbose=1)                                    # Verbose output during training
+
+# Evaluate the model on the test dataset
+score = model.evaluate(X_test, Y_test, batch_size=BATCH_SIZE, verbose=1)
+
+# Print test loss and accuracy
+print("Test score:", score[0])    # Test loss
+print("Test accuracy:", score[1]) # Test accuracy
