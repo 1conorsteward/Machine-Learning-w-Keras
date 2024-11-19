@@ -1,0 +1,94 @@
+"""
+Conor Steward
+11/19/24
+MNIST Handwritten Digit Classification Using a Neural Network
+------------------------------------------------------------
+This script trains a simple neural network to classify handwritten digits
+from the MNIST dataset. The model uses the following steps:
+1. Load and preprocess the MNIST dataset.
+2. Define a sequential neural network with two hidden layers.
+3. Train the model with categorical crossentropy loss and SGD optimizer.
+4. Evaluate the model on test data and print its accuracy.
+
+Key Features:
+- Dataset: MNIST (60000 training images, 10000 test images)
+- Architecture: Fully connected feed-forward neural network
+- Activation: ReLU for hidden layers, Softmax for output layer
+- Evaluation: Reports accuracy on test set after training
+"""
+
+# Import required libraries
+from __future__ import print_function
+import numpy as np
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers.core import Dense, Activation
+from keras.optimizers import SGD
+from keras.utils import np_utils
+
+# Set random seed for reproducibility
+np.random.seed(1671)
+
+# Network and training configuration
+NB_EPOCH = 20            # Number of epochs to train
+BATCH_SIZE = 128         # Batch size for training
+VERBOSE = 1              # Verbosity level for output
+NB_CLASSES = 10          # Number of output classes (digits 0-9)
+OPTIMIZER = SGD()        # Stochastic Gradient Descent optimizer
+N_HIDDEN = 128           # Number of neurons in hidden layers
+VALIDATION_SPLIT = 0.2   # Fraction of training data reserved for validation
+
+# Load MNIST dataset and split into training and testing sets
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Reshape dataset to 1D arrays (28x28 pixels -> 784 features)
+RESHAPED = 784
+X_train = X_train.reshape(60000, RESHAPED)
+X_test = X_test.reshape(10000, RESHAPED)
+
+# Convert pixel values to float and normalize to [0, 1]
+X_train = X_train.astype('float32') / 255
+X_test = X_test.astype('float32') / 255
+
+# Print the number of samples in training and test sets
+print(X_train.shape[0], 'train samples')
+print(X_test.shape[0], 'test samples')
+
+# Convert class labels to one-hot encoded format
+y_train = np_utils.to_categorical(y_train, NB_CLASSES)
+y_test = np_utils.to_categorical(y_test, NB_CLASSES)
+
+# Define a Sequential neural network model
+model = Sequential()
+
+# Add first hidden layer with ReLU activation
+model.add(Dense(N_HIDDEN, input_shape=(RESHAPED,)))
+model.add(Activation('relu'))
+
+# Add second hidden layer with ReLU activation
+model.add(Dense(N_HIDDEN))
+model.add(Activation('relu'))
+
+# Add output layer with Softmax activation for classification
+model.add(Dense(NB_CLASSES))
+model.add(Activation('softmax'))
+
+# Print model architecture summary
+model.summary()
+
+# Compile the model with categorical crossentropy loss and accuracy metric
+model.compile(loss='categorical_crossentropy', 
+              optimizer=OPTIMIZER, 
+              metrics=['accuracy'])
+
+# Train the model on training data with validation split
+history = model.fit(X_train, y_train,
+                    batch_size=BATCH_SIZE, epochs=NB_EPOCH,
+                    verbose=VERBOSE, validation_split=VALIDATION_SPLIT)
+
+# Evaluate the trained model on test data
+score = model.evaluate(X_test, y_test, verbose=VERBOSE)
+
+# Print test loss and accuracy
+print("Test score:", score[0])
+print("Test accuracy:", score[1])
